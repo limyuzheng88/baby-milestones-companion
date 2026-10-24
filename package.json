@@ -10,7 +10,8 @@
     "deploy": "wrangler deploy",
     "validate:library": "tsx scripts/seed-milestones.ts --check",
     "seed:local": "tsx scripts/seed-milestones.ts",
-    "seed:remote": "tsx scripts/seed-milestones.ts --remote"
+    "seed:remote": "tsx scripts/seed-milestones.ts --remote",
+    "scan:personal": "tsx scripts/scan-personal-data.ts"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.7",
