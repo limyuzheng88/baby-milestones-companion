@@ -114,3 +114,71 @@ export async function upcomingCheckups(db: D1Database, childId: number, today: s
   const { results } = await db.prepare('SELECT date FROM checkups WHERE child_id = ? AND date >= ? ORDER BY date').bind(childId, today).all<{ date: string }>();
   return results.map((r) => r.date);
 }
+
+export async function getChild(db: D1Database, encryptionKey: string, id: number): Promise<Child | null> {
+  return (await listChildren(db, encryptionKey)).find((c) => c.id === id) ?? null;
+}
+
+/** Upserts an answer. A changed answer clears follow_up_sent so the follow-up timer starts again. */
+export async function upsertStatus(
+  db: D1Database,
+  childId: number,
+  milestoneId: string,
+  status: Status['status'],
+  by: number,
+  achievedOn: string | null,
+  at: Date,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO milestone_status (child_id, milestone_id, status, achieved_on, answered_by, answered_at, follow_up_sent)
+       VALUES (?, ?, ?, ?, ?, ?, 0)
+       ON CONFLICT (child_id, milestone_id) DO UPDATE SET
+         follow_up_sent = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.follow_up_sent ELSE 0 END,
+         achieved_on = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.achieved_on ELSE excluded.achieved_on END,
+         answered_at = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.answered_at ELSE excluded.answered_at END,
+         status = excluded.status, answered_by = excluded.answered_by`,
+    )
+    .bind(childId, milestoneId, status, achievedOn, by, at.toISOString())
+    .run();
+}
+
+export async function insertNote(db: D1Database, childId: number, milestoneId: string, noteEnc: string, by: number, at: Date): Promise<void> {
+  await db
+    .prepare('INSERT INTO milestone_notes (child_id, milestone_id, note_enc, added_by, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(childId, milestoneId, noteEnc, by, at.toISOString())
+    .run();
+}
+
+export async function getMessageRef(db: D1Database, chatId: number, messageId: number): Promise<{ childId: number; milestoneId: string } | null> {
+  const r = await db
+    .prepare('SELECT child_id, milestone_id FROM message_refs WHERE chat_id = ? AND message_id = ?')
+    .bind(chatId, messageId)
+    .first<{ child_id: number; milestone_id: string }>();
+  return r ? { childId: r.child_id, milestoneId: r.milestone_id } : null;
+}
+
+export async function setPending(db: D1Database, userId: number, kind: string, payload: unknown, expiresAt: Date): Promise<void> {
+  await db
+    .prepare('INSERT OR REPLACE INTO pending_input (telegram_user_id, kind, payload_json, expires_at) VALUES (?, ?, ?, ?)')
+    .bind(userId, kind, JSON.stringify(payload), expiresAt.toISOString())
+    .run();
+}
+
+/** The user's pending input if it has not expired. Expired rows are removed. */
+export async function takePending(db: D1Database, userId: number, now: Date): Promise<{ kind: string; payload: unknown } | null> {
+  const r = await db
+    .prepare('SELECT kind, payload_json, expires_at FROM pending_input WHERE telegram_user_id = ?')
+    .bind(userId)
+    .first<{ kind: string; payload_json: string; expires_at: string }>();
+  if (!r) return null;
+  if (r.expires_at <= now.toISOString()) {
+    await clearPending(db, userId);
+    return null;
+  }
+  return { kind: r.kind, payload: JSON.parse(r.payload_json) };
+}
+
+export async function clearPending(db: D1Database, userId: number): Promise<void> {
+  await db.prepare('DELETE FROM pending_input WHERE telegram_user_id = ?').bind(userId).run();
+}

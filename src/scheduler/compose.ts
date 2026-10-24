@@ -6,7 +6,7 @@ import type { Band, DueItem } from './planner';
 
 export type OutgoingMessage = { text: string; buttons: Button[][]; milestoneId?: string };
 
-export type Answer = 'yes' | 'not_yet' | 'not_sure' | 'note';
+export type Answer = 'yes' | 'not_yet' | 'not_sure' | 'note' | 'change';
 
 const TELEGRAM_LIMIT = 4096;
 
@@ -75,6 +75,17 @@ function chunk(header: string, lines: string[]): string[] {
   return out;
 }
 
+/** First line of every milestone message: the child's name and the area of development. */
+export function milestoneHeader(child: Child, m: Milestone): string {
+  return `<b>${escapeHtml(child.name)}</b> · ${DOMAIN_LABEL[m.domain]}`;
+}
+
+export function checkInText(child: Child, m: Milestone, memberCount: number): string {
+  const fill = (s: string) => escapeHtml(fillPlaceholders(s, child));
+  const anyone = memberCount > 1 ? '\nAnyone here can tap.' : '';
+  return `${milestoneHeader(child, m)}\n${fill(m.wording)}?\n\nPlay idea: ${fill(m.tip)}\n\nTap whatever fits today. There's no wrong answer.${anyone}`;
+}
+
 export function composeDailyNote(child: Child, items: DueItem[], memberCount: number): OutgoingMessage[] {
   if (!items.length) return [];
   const name = escapeHtml(child.name);
@@ -105,11 +116,10 @@ export function composeDailyNote(child: Child, items: DueItem[], memberCount: nu
   for (const item of items) {
     if (item.kind !== 'check_in' && item.kind !== 'follow_up') continue;
     const m = item.milestone;
-    const label = DOMAIN_LABEL[m.domain];
     const text =
       item.kind === 'check_in'
-        ? `<b>${name}</b> · ${label}\n${fill(m.wording)}?\n\nPlay idea: ${fill(m.tip)}\n\nTap whatever fits today. There's no wrong answer.${anyone}`
-        : `<b>${name}</b> · ${label}\nChecking back in, no rush: ${fill(m.wording)}?\n\nEvery child gets there in their own time. Another go at this play idea: ${fill(m.tip)}${anyone}`;
+        ? checkInText(child, m, memberCount)
+        : `${milestoneHeader(child, m)}\nChecking back in, no rush: ${fill(m.wording)}?\n\nEvery child gets there in their own time. Another go at this play idea: ${fill(m.tip)}${anyone}`;
     messages.push({ text: text.slice(0, TELEGRAM_LIMIT), buttons: checkInButtons(child, m.id), milestoneId: m.id });
   }
   return messages;
