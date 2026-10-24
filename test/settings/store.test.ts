@@ -1,8 +1,11 @@
 import { env } from 'cloudflare:test';
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { resetDb } from '../helpers/db';
 import { getSetting, setSetting } from '../../src/settings/store';
 
 describe('settings store', () => {
+  beforeEach(resetDb);
+
   test('defaults when unset', async () => {
     expect(await getSetting(env.DB, 'note.time')).toBe('09:00');
     expect(await getSetting(env.DB, 'ai.model')).toBe('claude-haiku-5-5');
