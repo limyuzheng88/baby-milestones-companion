@@ -11,6 +11,7 @@ describe('settings store', () => {
     expect(await getSetting(env.DB, 'ai.model')).toBe('claude-haiku-5-5');
     expect(await getSetting(env.DB, 'ai.monthlyCapUsd')).toBe(2);
     expect(await getSetting(env.DB, 'milestones.pausedUntil')).toBeNull();
+    expect(await getSetting(env.DB, 'cadence.checkInsPerDay')).toBe(3);
   });
 
   test('child override beats global', async () => {

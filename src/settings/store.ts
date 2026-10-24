@@ -3,6 +3,7 @@ export interface SettingValues {
   'cadence.headsUpDays': number;
   'cadence.followUpDays': number;
   'cadence.preCheckupDays': number;
+  'cadence.checkInsPerDay': number;
   'milestones.pausedUntil': string | null;
   'ai.model': string;
   'ai.monthlyCapUsd': number;
@@ -16,6 +17,7 @@ export const DEFAULTS: SettingValues = {
   'cadence.headsUpDays': 14,
   'cadence.followUpDays': 14,
   'cadence.preCheckupDays': 7,
+  'cadence.checkInsPerDay': 3,
   'milestones.pausedUntil': null,
   'ai.model': 'claude-haiku-5-5',
   'ai.monthlyCapUsd': 2,
