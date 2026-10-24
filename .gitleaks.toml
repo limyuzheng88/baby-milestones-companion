@@ -2,7 +2,7 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
+[allowlist]
 description = "Test-only AES keys: the byte sequences 0..31 and 32..63, used by Vitest, never deployed"
 regexTarget = "match"
 regexes = [
