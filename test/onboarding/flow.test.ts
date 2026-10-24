@@ -73,6 +73,8 @@ describe('onboarding', () => {
     expect(lastText()).toContain('9:00am');
     expect(lastText()).toMatch(/ID numbers/);
     expect(lastText()).toMatch(/photos of faces or bodies/);
+    expect(lastText()).toMatch(/your family's/);
+    expect(lastText()).toMatch(/clinic's phone number/);
     expect(await handleOnboarding(say('hello'), ctx())).toBe(false);
   });
 

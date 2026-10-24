@@ -51,8 +51,9 @@ function niceTime(hhmm: string): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`;
 }
 
-const PRIVACY_LINE =
-  'Please keep personal data out of this chat: no ID numbers, phone numbers, addresses, passwords, bank details, or photos of faces or bodies.';
+/** Only the family's own details are kept out; other people's contacts help the bot know who and where. */
+export const PRIVACY_LINE =
+  "Please keep your family's personal data out of this chat: no ID numbers, your phone numbers, home address or email, passwords, bank details, or photos of faces or bodies. Other people's contact details are fine, like a clinic's phone number or a venue's address.";
 
 async function save(ctx: Ctx, userId: number, state: State): Promise<void> {
   await setPending(ctx.env.DB, userId, KIND, state, new Date(ctx.clock.now().getTime() + STATE_TTL_MS));

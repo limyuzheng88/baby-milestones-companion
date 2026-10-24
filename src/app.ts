@@ -3,7 +3,7 @@ import type { AiProvider } from './ai/provider';
 import { handleRouterCallback, routeMessage } from './ai/router';
 import { handleMilestoneCallback, handlePendingNote, type Ctx } from './milestones/answers';
 import { showMilestones } from './milestones/list';
-import { handleOnboarding, handleOnboardingCallback } from './onboarding/flow';
+import { PRIVACY_LINE, handleOnboarding, handleOnboardingCallback } from './onboarding/flow';
 import type { IncomingCallback, IncomingMessage } from './telegram/webhook';
 
 export type AppCtx = Ctx & { makeAi: () => Promise<AiProvider> };
@@ -15,7 +15,7 @@ const HELP = `Here's what I can do:
 • /show_milestones shows the list with your answers and notes.
 • /start shows your setup.
 
-Please keep personal data out of this chat: no ID numbers, phone numbers, addresses, passwords, bank details, or photos of faces or bodies.`;
+${PRIVACY_LINE}`;
 
 export async function onMessage(m: IncomingMessage, ctx: AppCtx): Promise<void> {
   if (await handleOnboarding(m, ctx)) return;

@@ -66,6 +66,7 @@ describe('message dispatch', () => {
     await addChild();
     await onMessage(say('/help'), ctx());
     expect(lastText()).toContain('/show_milestones');
+    expect(lastText()).toMatch(/clinic's phone number/);
     expect(aiUsed).toBe(0);
   });
 
