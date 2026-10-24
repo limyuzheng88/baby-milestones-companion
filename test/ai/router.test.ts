@@ -22,7 +22,7 @@ const owner: Member = { telegramUserId: 1001, displayName: 'Pat', role: 'owner',
 const member: Member = { telegramUserId: 1002, displayName: 'Sam', role: 'member', chatId: 502 };
 
 const intent = (over: Record<string, unknown>) =>
-  JSON.stringify({ kind: 'other', candidates: [], achievedOn: null, milestoneId: null, note: null, settingKey: null, settingValue: null, filterStatus: null, filterScope: null, question: null, ...over });
+  JSON.stringify({ kind: 'other', candidates: [], achievedOn: null, milestoneId: null, note: null, settingKey: null, settingValue: null, filterStatus: null, filterDomain: null, question: null, ...over });
 
 function fakeAi(...replies: (string | Error | 'hang')[]): AiProvider {
   return {
@@ -168,6 +168,13 @@ describe('routeMessage', () => {
   it('saves a note for a named milestone', async () => {
     await routeMessage(say('note for toes: loves the blue sock'), ctx(fakeAi(intent({ kind: 'add_note', milestoneId: 'fx-move-1', note: 'loves the blue sock' }))));
     expect((await env.DB.prepare('SELECT milestone_id FROM milestone_notes').all()).results).toEqual([{ milestone_id: 'fx-move-1' }]);
+  });
+
+  it('shows the filtered milestone list', async () => {
+    await env.DB.prepare("INSERT INTO milestone_status VALUES (1, 'fx-talk-1', 'not_yet', NULL, 1001, '2026-04-11T02:00:00Z', 0)").run();
+    await routeMessage(say("what hasn't she done yet"), ctx(fakeAi(intent({ kind: 'show_milestones', filterStatus: 'not_yet' }))));
+    expect(lastText()).toContain('She hums a fixture tune: not yet');
+    expect(lastText()).not.toContain('wiggles');
   });
 
   it('does not send the child name or member names to the AI', async () => {

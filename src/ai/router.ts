@@ -5,7 +5,7 @@ import { getChild, listChildren } from '../db/repo';
 import { addNote, recordAnswer, type Ctx } from '../milestones/answers';
 import { ageInWholeMonths, type Child } from '../milestones/age';
 import { loadMilestones, type Milestone } from '../milestones/library';
-import type { ListFilter } from '../milestones/list';
+import { showMilestones, type ListFilter } from '../milestones/list';
 import { fillPlaceholders } from '../scheduler/compose';
 import { SETTING_RULES, isSettingKey, parseSettingValue } from '../settings/rules';
 import { getSetting, setSetting, type SettingKey } from '../settings/store';
@@ -36,7 +36,7 @@ const nullableString = { type: ['string', 'null'] };
 const INTENT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['kind', 'candidates', 'achievedOn', 'milestoneId', 'note', 'settingKey', 'settingValue', 'filterStatus', 'filterScope', 'question'],
+  required: ['kind', 'candidates', 'achievedOn', 'milestoneId', 'note', 'settingKey', 'settingValue', 'filterStatus', 'filterDomain', 'question'],
   properties: {
     kind: { type: 'string', enum: ['mark_milestone', 'add_note', 'change_setting', 'show_milestones', 'question', 'other'] },
     candidates: { type: 'array', items: { type: 'string' } },
@@ -46,7 +46,7 @@ const INTENT_SCHEMA = {
     settingKey: nullableString,
     settingValue: nullableString,
     filterStatus: nullableString,
-    filterScope: nullableString,
+    filterDomain: nullableString,
     question: nullableString,
   },
 };
@@ -105,9 +105,12 @@ export function parseIntent(text: string): Intent {
       return { kind: 'change_setting', key: raw.settingKey, value: raw.settingValue };
     }
     case 'show_milestones': {
-      const status = ['all', 'yes', 'not_yet', 'not_sure', 'unanswered'].includes(raw.filterStatus as string) ? (raw.filterStatus as ListFilter['status']) : 'all';
-      const scope = raw.filterScope === 'all' ? 'all' : 'current';
-      return { kind: 'show_milestones', filter: { status, scope } };
+      const filter: ListFilter = {};
+      if (['yes', 'not_yet', 'not_sure', 'unasked', 'coming_up'].includes(raw.filterStatus as string)) {
+        filter.statuses = [raw.filterStatus as NonNullable<ListFilter['statuses']>[number]];
+      }
+      if (['movement', 'communication', 'social', 'thinking'].includes(raw.filterDomain as string)) filter.domain = raw.filterDomain as ListFilter['domain'];
+      return { kind: 'show_milestones', filter };
     }
     case 'question': {
       const q = str(raw.question);
@@ -140,7 +143,7 @@ Return JSON only. kind is one of:
 - mark_milestone: the parent says the child did something. candidates = ids from the list below that match, best first (at most 3). achievedOn = YYYY-MM-DD if a day is given, else null.
 - add_note: the parent wants to note something about a milestone. milestoneId = matching id or null. note = the note text, as written.
 - change_setting: the parent wants a setting changed. settingKey = one key below. settingValue = the new value as a string in the allowed format (use "null" to clear).
-- show_milestones: the parent wants to see the milestone list. filterStatus = all | yes | not_yet | not_sure | unanswered. filterScope = current | all.
+- show_milestones: the parent wants to see the milestone list. filterStatus = yes | not_yet | not_sure | unasked | coming_up, or null for all. filterDomain = movement | communication | social | thinking, or null for all.
 - question: a question about development or milestones. question = the question.
 - other: anything else.
 Unused fields are null (candidates is [] when unused). Never invent ids.
@@ -201,7 +204,7 @@ export async function routeMessage(m: IncomingMessage, ctx: RouterCtx): Promise<
     case 'change_setting':
       return changeSetting(ctx, m, intent.key, intent.value);
     case 'show_milestones':
-      return reply(ctx, m.chatId, 'Send /show_milestones to see the list.');
+      return showMilestones(ctx, m.chatId, intent.filter);
     case 'question':
       return answerQuestion(ctx, m.chatId, child, today, ms, intent.text);
     case 'other':

@@ -182,3 +182,25 @@ export async function takePending(db: D1Database, userId: number, now: Date): Pr
 export async function clearPending(db: D1Database, userId: number): Promise<void> {
   await db.prepare('DELETE FROM pending_input WHERE telegram_user_id = ?').bind(userId).run();
 }
+
+/** Answers with achieved dates, for the milestone list. */
+export async function getListStatuses(db: D1Database, childId: number): Promise<Map<string, Status & { achievedOn: string | null }>> {
+  const { results } = await db
+    .prepare('SELECT milestone_id, status, answered_at, follow_up_sent, achieved_on FROM milestone_status WHERE child_id = ?')
+    .bind(childId)
+    .all<StatusRow & { achieved_on: string | null }>();
+  return new Map(
+    results.map((r) => [r.milestone_id, { status: r.status, answeredAt: r.answered_at, followUpSent: r.follow_up_sent === 1, achievedOn: r.achieved_on }]),
+  );
+}
+
+/** Decrypted notes per milestone, oldest first. */
+export async function getNotes(db: D1Database, encryptionKey: string, childId: number): Promise<Map<string, string[]>> {
+  const { results } = await db
+    .prepare('SELECT milestone_id, note_enc FROM milestone_notes WHERE child_id = ? ORDER BY created_at, id')
+    .bind(childId)
+    .all<{ milestone_id: string; note_enc: string }>();
+  const out = new Map<string, string[]>();
+  for (const r of results) out.set(r.milestone_id, [...(out.get(r.milestone_id) ?? []), await decrypt(r.note_enc, encryptionKey)]);
+  return out;
+}

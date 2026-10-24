@@ -48,7 +48,7 @@ export function checkInButtons(child: Child, milestoneId: string): Button[][] {
   return [[b(FORMS[child.pronoun].doing, 'yes')], [b('Not yet', 'not_yet'), b('Not sure', 'not_sure')], [b('Add a note', 'note')]];
 }
 
-function bandLabel(band: Band): string {
+export function bandLabel(band: Band): string {
   if (band.startMonths >= 24 && band.startMonths % 12 === 0 && band.endMonths % 12 === 0) {
     return `${band.startMonths / 12} to ${band.endMonths / 12} years`;
   }
@@ -60,7 +60,7 @@ function dateLabel(date: string): string {
 }
 
 /** Splits lines into messages under the limit, repeating the header so every message names the child. */
-function chunk(header: string, lines: string[]): string[] {
+export function chunk(header: string, lines: string[]): string[] {
   const out: string[] = [];
   let current = header;
   for (const line of lines) {
