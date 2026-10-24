@@ -17,13 +17,37 @@ A private Telegram companion that gently tracks a baby's developmental milestone
    npx wrangler secret put ENCRYPTION_KEY            # openssl rand -base64 32
    npx wrangler secret put OWNER_TELEGRAM_ID
    ```
+5. **Milestone library:** the checklist wording is not in this repository (see `docs/sources.md`). Put the library
+   file at `data/milestones.private.json` (git-ignored), then run `npm run validate:library` and `npm run seed:remote`.
+
+## First deploy and webhook
+
+1. Set up the [deploy secrets](#deploy-secrets-owner-once) and merge to `main`. The pipeline applies migrations and deploys.
+2. Register the webhook with the Worker URL from the deploy log:
+   ```sh
+   scripts/set-webhook.sh https://baby-milestones-companion.<your-subdomain>.workers.dev
+   ```
+3. In Telegram, send `/start` to the bot from the owner account and follow the setup.
+
+Acceptance check on a test bot: onboarding completes; a second, unapproved account gets no reply; with the note
+time set to the next hour ("send notes at 3pm"), the note arrives with buttons and each tap updates the message;
+"she smiled at me today" gives a confirm card; "send the notes at 8pm" changes the time and Undo restores it;
+`/show_milestones` lists answers and notes.
+
+## Rollback
+
+Revert the pull request on GitHub; merging the revert redeploys the previous code through the pipeline. In an
+emergency, `npx wrangler rollback` restores the previous Worker version immediately (database migrations are not
+rolled back, so migrations must stay backwards compatible).
 
 ## Development
 
 ```sh
-npm ci
-npm test          # Vitest inside the Workers runtime, with a local D1
+npx -y npm@11 ci     # npm 11 is required
+npm test             # Vitest inside the Workers runtime, with a local D1
 npm run typecheck
+npm run scan:personal
+npm run seed:local   # load data/milestones.private.json into the local D1 for wrangler dev
 ```
 
 ## Pipeline
