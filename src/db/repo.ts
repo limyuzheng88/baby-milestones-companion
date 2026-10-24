@@ -119,7 +119,10 @@ export async function getChild(db: D1Database, encryptionKey: string, id: number
   return (await listChildren(db, encryptionKey)).find((c) => c.id === id) ?? null;
 }
 
-/** Upserts an answer. A changed answer clears follow_up_sent so the follow-up timer starts again. */
+/**
+ * Upserts an answer. Repeating the same answer keeps its timestamps (double taps change nothing);
+ * a different answer replaces them. `explicitDate` means the parent named the day, so it always wins.
+ */
 export async function upsertStatus(
   db: D1Database,
   childId: number,
@@ -128,6 +131,7 @@ export async function upsertStatus(
   by: number,
   achievedOn: string | null,
   at: Date,
+  explicitDate = false,
 ): Promise<void> {
   await db
     .prepare(
@@ -135,11 +139,11 @@ export async function upsertStatus(
        VALUES (?, ?, ?, ?, ?, ?, 0)
        ON CONFLICT (child_id, milestone_id) DO UPDATE SET
          follow_up_sent = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.follow_up_sent ELSE 0 END,
-         achieved_on = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.achieved_on ELSE excluded.achieved_on END,
+         achieved_on = CASE WHEN milestone_status.status = excluded.status AND ? = 0 THEN milestone_status.achieved_on ELSE excluded.achieved_on END,
          answered_at = CASE WHEN milestone_status.status = excluded.status THEN milestone_status.answered_at ELSE excluded.answered_at END,
          status = excluded.status, answered_by = excluded.answered_by`,
     )
-    .bind(childId, milestoneId, status, achievedOn, by, at.toISOString())
+    .bind(childId, milestoneId, status, achievedOn, by, at.toISOString(), explicitDate ? 1 : 0)
     .run();
 }
 

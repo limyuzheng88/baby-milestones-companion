@@ -29,6 +29,8 @@ export interface Deps {
   onCallback(c: IncomingCallback): Promise<void>;
 }
 
+const MIN_SECRET_LENGTH = 16;
+
 const ok = () => new Response('ok', { status: 200 });
 
 function safeEqual(a: string, b: string): boolean {
@@ -54,8 +56,14 @@ async function resolveMember(env: Env, deps: Deps, userId: number, chatId: numbe
 }
 
 export async function handleWebhook(req: Request, env: Env, deps: Deps): Promise<Response> {
+  const configured = env.TELEGRAM_WEBHOOK_SECRET ?? '';
+  // Fail closed: a missing or weak configured secret must never let unsigned requests through.
+  if (configured.length < MIN_SECRET_LENGTH) {
+    console.error('webhook secret not configured');
+    return new Response('unauthorized', { status: 401 });
+  }
   const secret = req.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '';
-  if (!safeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET)) return new Response('unauthorized', { status: 401 });
+  if (!safeEqual(secret, configured)) return new Response('unauthorized', { status: 401 });
 
   let update: TgUpdate;
   try {

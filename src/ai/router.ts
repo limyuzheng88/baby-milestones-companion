@@ -26,6 +26,8 @@ export type Intent =
   | { kind: 'other' };
 
 export const FALLBACK_TEXT = "I didn't quite get that. You can use the buttons, or try saying it another way.";
+export const RESTING_TEXT =
+  "I can't chat right now, but I'll be back soon. Your daily reminders and the buttons still work as usual.";
 const PAUSED_TEXT =
   "I've used this month's AI budget, so chat replies are paused until next month. Your daily reminders and the buttons still work as usual.";
 const QUESTION_FOOTER = 'If anything worries you, your doctor or polyclinic is the best person to ask.';
@@ -75,6 +77,11 @@ async function ask(ctx: RouterCtx, system: string, user: string, maxTokens: numb
     if (err instanceof AiRefusal) await recordUsage(ctx.env.DB, ctx.ai.model, err.inputTokens, err.outputTokens, ctx.clock.now());
     throw err;
   }
+}
+
+/** Not understood (bad JSON, refusal) → ask to rephrase; AI down, slow or out of credit → say chat is resting. */
+function failureText(err: unknown): string {
+  return err instanceof InvalidIntent || err instanceof AiRefusal ? FALLBACK_TEXT : RESTING_TEXT;
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
@@ -189,7 +196,7 @@ export async function routeMessage(m: IncomingMessage, ctx: RouterCtx): Promise<
     intent = parseIntent(await ask(ctx, classifierPrompt(child, today, ms), m.text.slice(0, 2000), 400, INTENT_SCHEMA));
   } catch (err) {
     console.error('router: classify failed', { error: (err as Error).name });
-    return reply(ctx, m.chatId, FALLBACK_TEXT);
+    return reply(ctx, m.chatId, failureText(err));
   }
 
   switch (intent.kind) {
@@ -250,7 +257,7 @@ async function answerQuestion(ctx: RouterCtx, chatId: number, child: Child, toda
     answer = (await ask(ctx, questionPrompt(child, today, ms), question.slice(0, 1000), 400)).trim();
   } catch (err) {
     console.error('router: answer failed', { error: (err as Error).name });
-    return reply(ctx, chatId, FALLBACK_TEXT);
+    return reply(ctx, chatId, failureText(err));
   }
   // AI-written text must pass the tone guard, or a fixed safe answer goes instead.
   const safe = answer && !findBannedWords(answer).length ? answer : SAFE_ANSWER;
@@ -271,8 +278,8 @@ export async function handleRouterCallback(c: IncomingCallback, ctx: Ctx): Promi
     const child = await getChild(db, ctx.env.ENCRYPTION_KEY, Number(mk[1]));
     const milestone = (await loadMilestones(db)).find((x) => x.id === mk[2]);
     const on = `${mk[3]!.slice(0, 4)}-${mk[3]!.slice(4, 6)}-${mk[3]!.slice(6)}`;
-    if (!child || !milestone || on > sgToday(ctx.clock)) return;
-    await recordAnswer(db, child.id, milestone.id, 'yes', c.from.telegramUserId, on, ctx.clock.now());
+    if (!child || !milestone || parseSettingValue('milestones.pausedUntil', on) !== on || on > sgToday(ctx.clock)) return;
+    await recordAnswer(db, child.id, milestone.id, 'yes', c.from.telegramUserId, on, ctx.clock.now(), true);
     await ctx.tg.editMessageText(c.chatId, c.messageId, `🎉 Lovely! Noted: ${escapeHtml(fillPlaceholders(milestone.wording, child))} (${dateLabel(on)}).`);
     return;
   }

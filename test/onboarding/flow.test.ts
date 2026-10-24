@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Member } from '../../src/db/repo';
 import { handleOnboarding, handleOnboardingCallback, parseDate } from '../../src/onboarding/flow';
 import { decrypt } from '../../src/security/crypto';
+import { findBannedWords } from '../../src/tone/guard';
 import { TelegramClient } from '../../src/telegram/client';
 import type { IncomingCallback, IncomingMessage } from '../../src/telegram/webhook';
 import { resetDb } from '../helpers/db';
@@ -129,6 +130,31 @@ describe('onboarding', () => {
     expect(await handleOnboarding(say('/start'), ctx())).toBe(true);
     expect(lastText()).toContain('Test Baby');
     expect(await children()).toHaveLength(1);
+  });
+
+  it('creates the child once when the last button is tapped twice at the same time', async () => {
+    await upToBirth();
+    await handleOnboarding(say('10 Mar 2026'), ctx());
+    await press('Skip');
+    const skip = buttons().find((b) => b.text === 'Skip')!.callback_data;
+    await Promise.all([handleOnboardingCallback(tap(skip), ctx()), handleOnboardingCallback(tap(skip), ctx())]);
+    expect(await children()).toHaveLength(1);
+  });
+
+  it('never uses a banned word in any onboarding message', async () => {
+    await upToBirth();
+    await handleOnboarding(say('2026-02-14'), ctx());
+    await handleOnboarding(say('2026-03-28'), ctx());
+    await press('Yes, use corrected age');
+    await handleOnboarding(say('20 Apr 2026'), ctx());
+    await handleOnboarding(say('/start', member), ctx());
+    for (const c of calls.filter((x) => x.method === 'sendMessage')) expect(findBannedWords(String(c.body.text))).toEqual([]);
+  });
+
+  it('does not take a command as the child name', async () => {
+    await handleOnboarding(say('/start'), ctx());
+    await handleOnboarding(say('/help'), ctx());
+    expect(lastText()).toMatch(/nickname/);
   });
 
   it('rejects an empty or overly long name', async () => {

@@ -18,16 +18,17 @@ A private Telegram companion that gently tracks a baby's developmental milestone
    npx wrangler secret put OWNER_TELEGRAM_ID
    ```
 5. **Milestone library:** the checklist wording is not in this repository (see `docs/sources.md`). Put the library
-   file at `data/milestones.private.json` (git-ignored), then run `npm run validate:library` and `npm run seed:remote`.
+   file at `data/milestones.private.json` (git-ignored) and run `npm run validate:library`. It is loaded after the first deploy.
 
 ## First deploy and webhook
 
 1. Set up the [deploy secrets](#deploy-secrets-owner-once) and merge to `main`. The pipeline applies migrations and deploys.
-2. Register the webhook with the Worker URL from the deploy log:
+2. Load the milestone library into the now-migrated database: `npm run seed:remote`.
+3. Register the webhook with the Worker URL from the deploy log:
    ```sh
    scripts/set-webhook.sh https://baby-milestones-companion.<your-subdomain>.workers.dev
    ```
-3. In Telegram, send `/start` to the bot from the owner account and follow the setup.
+4. In Telegram, send `/start` to the bot from the owner account and follow the setup.
 
 Acceptance check on a test bot: onboarding completes; a second, unapproved account gets no reply; with the note
 time set to the next hour ("send notes at 3pm"), the note arrives with buttons and each tap updates the message;

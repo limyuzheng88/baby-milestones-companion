@@ -34,6 +34,16 @@ async function addOwner() {
 beforeEach(async () => { messages = []; callbacks = []; await resetDb(); });
 
 describe('webhook', () => {
+  test('an unset or short webhook secret fails closed', async () => {
+    for (const configured of ['', 'short']) {
+      const res = await handleWebhook(req(update(1, OWNER, 'hi'), configured), { ...env, TELEGRAM_WEBHOOK_SECRET: configured }, deps());
+      expect(res.status).toBe(401);
+    }
+    const unset = { ...env, TELEGRAM_WEBHOOK_SECRET: undefined as unknown as string };
+    expect((await handleWebhook(req(update(2, OWNER, 'hi'), null), unset, deps())).status).toBe(401);
+    expect(messages).toHaveLength(0);
+  });
+
   test('missing secret header is rejected', async () => {
     const res = await handleWebhook(req(update(1, OWNER, 'hi'), null), env, deps());
     expect(res.status).toBe(401);

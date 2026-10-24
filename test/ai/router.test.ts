@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import fixture from '../fixtures/milestones.fixture.json';
 import type { AiProvider, AiRequest } from '../../src/ai/provider';
 import { AiRefusal } from '../../src/ai/provider';
-import { FALLBACK_TEXT, handleRouterCallback, routeMessage } from '../../src/ai/router';
+import { FALLBACK_TEXT, RESTING_TEXT, handleRouterCallback, routeMessage } from '../../src/ai/router';
 import { recordUsage } from '../../src/ai/spend';
 import type { Member } from '../../src/db/repo';
 import { clearMilestoneCache, parseLibrary, toSeedSql } from '../../src/milestones/library';
@@ -130,11 +130,33 @@ describe('routeMessage', () => {
   });
 
   it('falls back and changes nothing on invalid JSON, errors, refusals, timeouts or bad intents', async () => {
-    for (const reply of ['not json', new Error('boom'), new AiRefusal(10, 0), 'hang' as const, intent({ kind: 'launch_rocket' }), intent({ kind: 'change_setting', settingKey: 'evil.key', settingValue: '1' })]) {
+    for (const reply of ['not json', new AiRefusal(10, 0), intent({ kind: 'launch_rocket' }), intent({ kind: 'change_setting', settingKey: 'evil.key', settingValue: '1' })]) {
       calls = [];
       await routeMessage(say('hmm'), ctx(fakeAi(reply)));
       expect(lastText()).toBe(FALLBACK_TEXT);
     }
+    await noWrites();
+  });
+
+  it('says chat is resting, not "say it another way", when the AI is down or slow', async () => {
+    for (const reply of [new Error('credit balance too low'), 'hang' as const]) {
+      calls = [];
+      await routeMessage(say('hmm'), ctx(fakeAi(reply)));
+      expect(lastText()).toBe(RESTING_TEXT);
+    }
+    expect(RESTING_TEXT).toMatch(/reminders/);
+    await noWrites();
+  });
+
+  it('a re-confirmed milestone keeps the date the parent just gave', async () => {
+    await env.DB.prepare("INSERT INTO milestone_status VALUES (1, 'fx-move-1', 'yes', '2026-04-11', 1001, '2026-04-11T02:00:00Z', 0)").run();
+    await routeMessage(say('actually she did it on the 5th'), ctx(fakeAi(intent({ kind: 'mark_milestone', candidates: ['fx-move-1'], achievedOn: '2026-04-05' }))));
+    await handleRouterCallback(tap(buttonsOf(sends().at(-1))[0]!.callback_data), ctx(fakeAi()));
+    expect(await env.DB.prepare('SELECT achieved_on FROM milestone_status').first()).toEqual({ achieved_on: '2026-04-05' });
+  });
+
+  it('ignores a forged impossible date', async () => {
+    await handleRouterCallback(tap('mk:1:fx-move-1:20260231'), ctx(fakeAi()));
     await noWrites();
   });
 

@@ -23,8 +23,9 @@ export async function recordAnswer(
   by: number,
   achievedOn: string | null,
   at: Date,
+  explicitDate = false,
 ): Promise<void> {
-  await upsertStatus(db, childId, milestoneId, status, by, achievedOn, at);
+  await upsertStatus(db, childId, milestoneId, status, by, achievedOn, at, explicitDate);
 }
 
 export async function addNote(db: D1Database, key: string, childId: number, milestoneId: string, note: string, by: number, at: Date): Promise<void> {

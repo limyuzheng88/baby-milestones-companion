@@ -1,7 +1,7 @@
 // First-run setup, owned by the owner: name → pronoun → birth date → due date → corrected age → next check-up.
 // Dates are parsed here in code, never by the AI.
 import { sgToday } from '../clock';
-import { clearPending, listChildren, setPending, takePending } from '../db/repo';
+import { listChildren, setPending, takePending } from '../db/repo';
 import { addDays, type Child } from '../milestones/age';
 import type { Ctx } from '../milestones/answers';
 import { encrypt } from '../security/crypto';
@@ -68,9 +68,9 @@ async function ask(ctx: Ctx, chatId: number, state: State, lead?: string): Promi
   const send = (text: string, buttons?: Button[][]) => ctx.tg.sendMessage(chatId, lead ? `${lead}\n\n${text}` : text, buttons);
   switch (state.step) {
     case 'name':
-      return void (await send("Hi! I'm your milestone companion. I'll send gentle notes about what to look forward to, and you can tell me how things are going.\n\nWhat should I call your child? A first name or nickname is enough."));
+      return void (await send("Hi! I'm your milestone companion. I'll send gentle notes about what to look forward to, and you can tell me how things are going.\n\nWhat would you like me to call your child? A first name or nickname is enough."));
     case 'pronoun':
-      return void (await send(`Lovely. Should I say she, he or they for ${name}?`, [
+      return void (await send(`Lovely. Which fits ${name}: she, he or they?`, [
         [{ text: 'She', data: 'ob:pronoun:she' }, { text: 'He', data: 'ob:pronoun:he' }, { text: 'They', data: 'ob:pronoun:they' }],
       ]));
     case 'birth':
@@ -81,7 +81,7 @@ async function ask(ctx: Ctx, chatId: number, state: State, lead?: string): Promi
       return void (await send(`When is ${name} due? For example 28 Mar 2026.`));
     case 'corrected':
       return void (await send(
-        `${name} arrived more than three weeks before the due date. Many doctors use corrected age (counted from the due date) for milestones in the first two years. Should I?`,
+        `${name} arrived more than three weeks before the due date. Many doctors use corrected age (counted from the due date) for milestones in the first two years. Would you like me to use it?`,
         [[{ text: 'Yes, use corrected age', data: 'ob:corrected:yes' }], [{ text: 'No, use birth date', data: 'ob:corrected:no' }]],
       ));
     case 'checkup':
@@ -109,12 +109,14 @@ function afterDates(state: State): State {
 
 async function finish(ctx: Ctx, m: { chatId: number; from: { telegramUserId: number } }, state: State, checkup: string | null): Promise<void> {
   const db = ctx.env.DB;
+  // Claim the setup atomically, so two taps arriving together create one child.
+  const claim = await db.prepare("DELETE FROM pending_input WHERE telegram_user_id = ? AND kind = 'onboarding'").bind(m.from.telegramUserId).run();
+  if (claim.meta.changes !== 1) return;
   const res = await db
     .prepare('INSERT INTO children (name_enc, pronoun, birth_date, due_date, use_corrected_age, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(await encrypt(state.name!, ctx.env.ENCRYPTION_KEY), state.pronoun!, state.birthDate ?? null, state.dueDate ?? null, state.useCorrectedAge ? 1 : 0, ctx.clock.now().toISOString())
     .run();
   if (checkup) await db.prepare('INSERT INTO checkups (child_id, date) VALUES (?, ?)').bind(res.meta.last_row_id, checkup).run();
-  await clearPending(db, m.from.telegramUserId);
   await summary(ctx, m.chatId, await listChildren(db, ctx.env.ENCRYPTION_KEY));
 }
 
@@ -143,7 +145,7 @@ export async function handleOnboarding(m: IncomingMessage, ctx: Ctx): Promise<bo
 
   switch (state.step) {
     case 'name': {
-      if (!text || text.length > MAX_NAME || /[\n<>]/.test(text)) return retry(`Could you send a shorter name, up to ${MAX_NAME} letters, on one line?`).then(() => true);
+      if (!text || text.startsWith('/') || text.length > MAX_NAME || /[\n<>]/.test(text)) return retry(`Could you send a shorter name, up to ${MAX_NAME} letters, on one line?`).then(() => true);
       const next: State = { ...state, name: text, step: 'pronoun' };
       await save(ctx, userId, next);
       await ask(ctx, m.chatId, next);
