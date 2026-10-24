@@ -1,0 +1,11 @@
+# Extends gitleaks' default rules. Only exact, known test-only values are allowed here.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test-only AES keys: the byte sequences 0..31 and 32..63, used by Vitest, never deployed"
+regexTarget = "match"
+regexes = [
+  '''AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=''',
+  '''ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=''',
+]
