@@ -1,0 +1,45 @@
+{
+  "version": "fixture-1",
+  "milestones": [
+    {
+      "id": "fx-move-1",
+      "bandStartMonths": 1,
+      "bandEndMonths": 2,
+      "domain": "movement",
+      "wording": "{Pronoun} wiggles {possessive} toes at the fixture",
+      "tip": "Wiggle a pretend toy near {possessive} feet.",
+      "source": "HPB",
+      "sourceUrl": "https://example.org/fixture-source"
+    },
+    {
+      "id": "fx-talk-1",
+      "bandStartMonths": 1,
+      "bandEndMonths": 2,
+      "domain": "communication",
+      "wording": "{Pronoun} hums a fixture tune",
+      "tip": "Hum back to {object}.",
+      "source": "HPB",
+      "sourceUrl": "https://example.org/fixture-source"
+    },
+    {
+      "id": "fx-play-1",
+      "bandStartMonths": 3,
+      "bandEndMonths": 5,
+      "domain": "social",
+      "wording": "{Pronoun} grins at a fixture puppet",
+      "tip": "Play peekaboo with a sock puppet.",
+      "source": "CDC",
+      "sourceUrl": "https://example.org/fixture-other"
+    },
+    {
+      "id": "fx-think-1",
+      "bandStartMonths": 6,
+      "bandEndMonths": 12,
+      "domain": "thinking",
+      "wording": "{Pronoun} looks for a hidden fixture block",
+      "tip": "Hide a block under a cloth while {pronoun} watches.",
+      "source": "WHO",
+      "sourceUrl": "https://example.org/fixture-other"
+    }
+  ]
+}
