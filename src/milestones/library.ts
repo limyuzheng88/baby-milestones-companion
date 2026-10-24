@@ -23,6 +23,8 @@ export type Library = { version: string; milestones: Milestone[] };
 const DOMAINS: readonly string[] = ['movement', 'communication', 'social', 'thinking'];
 const SOURCES: readonly string[] = ['HPB', 'CDC', 'WHO'];
 const MAX_START_MONTHS = 72;
+/** Keeps button data `ms:<childId>:<id>:not_sure` within Telegram's 64 bytes for child ids up to 6 digits. */
+export const MAX_ID_LENGTH = 40;
 export const PLACEHOLDERS: readonly string[] = ['{pronoun}', '{Pronoun}', '{object}', '{possessive}'];
 
 /** Validates a library file. Throws naming the first bad item. */
@@ -40,6 +42,8 @@ export function parseLibrary(json: unknown): Library {
       throw new Error(`library: item ${id}: ${why}`);
     };
     if (typeof m.id !== 'string' || !m.id) fail('missing id');
+    if (!/^[a-z0-9-]+$/.test(id)) fail('id must be lowercase letters, digits and dashes');
+    if (id.length > MAX_ID_LENGTH) fail(`id too long (max ${MAX_ID_LENGTH})`);
     if (seen.has(id)) fail(`duplicate id ${id}`);
     seen.add(id);
     const start = m.bandStartMonths;

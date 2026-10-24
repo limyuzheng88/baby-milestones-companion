@@ -63,6 +63,12 @@ describe('parseLibrary', () => {
     expect(() => parseLibrary(bad2)).toThrow(/fx-think-1/);
   });
 
+  it('rejects ids too long for Telegram button data', () => {
+    const bad = clone();
+    bad.milestones[0]!.id = 'x'.repeat(41);
+    expect(() => parseLibrary(bad)).toThrow(/too long/);
+  });
+
   it('rejects unknown placeholders', () => {
     const bad = clone();
     bad.milestones[0]!.wording = '{Her} wiggles';
