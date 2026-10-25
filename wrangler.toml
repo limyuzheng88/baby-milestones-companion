@@ -10,7 +10,7 @@ crons = ["0 * * * *"]
 binding = "DB"
 database_name = "baby-milestones"
 # Replace with the id printed by `wrangler d1 create baby-milestones`.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d4a478b4-b09c-4550-b8b4-845f8701ec7e"
 migrations_dir = "migrations"
 
 [observability]
