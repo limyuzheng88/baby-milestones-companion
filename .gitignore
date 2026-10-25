@@ -5,3 +5,4 @@ node_modules/
 scan-denylist.txt
 .superpowers/
 coverage/
+*.private.sql
