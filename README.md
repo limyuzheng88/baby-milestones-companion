@@ -28,6 +28,7 @@ A private Telegram companion that gently tracks a baby's developmental milestone
    ```sh
    scripts/set-webhook.sh https://baby-milestones-companion.<your-subdomain>.workers.dev
    ```
+   On Windows PowerShell: `powershell -ExecutionPolicy Bypass -File scripts\set-webhook.ps1 https://...workers.dev`
 4. In Telegram, send `/start` to the bot from the owner account and follow the setup.
 
 Acceptance check on a test bot: onboarding completes; a second, unapproved account gets no reply; with the note

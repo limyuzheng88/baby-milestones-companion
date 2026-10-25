@@ -20,8 +20,11 @@ mkdirSync('.wrangler', { recursive: true });
 const sqlFile = join('.wrangler', 'seed-milestones.sql');
 writeFileSync(sqlFile, toSeedSql(lib), { mode: 0o600 });
 try {
-  execFileSync('npx', ['wrangler', 'd1', 'execute', 'baby-milestones', args.includes('--remote') ? '--remote' : '--local', '--file', sqlFile], {
+  // On Windows npx is a .cmd file, which Node only runs through a shell. The arguments are fixed, never user input.
+  const windows = process.platform === 'win32';
+  execFileSync(windows ? 'npx.cmd' : 'npx', ['wrangler', 'd1', 'execute', 'baby-milestones', args.includes('--remote') ? '--remote' : '--local', '--file', sqlFile], {
     stdio: 'inherit',
+    shell: windows,
   });
 } finally {
   rmSync(sqlFile, { force: true });
