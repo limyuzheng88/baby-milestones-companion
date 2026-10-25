@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { TelegramClient, TelegramError, escapeHtml } from '../../src/telegram/client';
 
 type Call = { url: string; body: any };
@@ -16,6 +16,19 @@ function fakeFetch(responses: Array<{ status?: number; json: unknown }>) {
 const noSleep = async () => {};
 
 describe('TelegramClient', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('the default fetch is called without the client as its receiver', async () => {
+    // Workers throws "Illegal invocation" if fetch runs with another object as `this`.
+    let receiver: unknown = 'unset';
+    vi.stubGlobal('fetch', function (this: unknown) {
+      receiver = this;
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })));
+    });
+    await new TelegramClient('tok').sendMessage(7, 'Hi');
+    expect(receiver).toBeUndefined();
+  });
+
   test('sendMessage posts HTML text with inline keyboard', async () => {
     const f = fakeFetch([{ json: { ok: true, result: { message_id: 42 } } }]);
     const tg = new TelegramClient('tok', f.fn, noSleep);
