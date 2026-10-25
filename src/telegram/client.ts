@@ -30,7 +30,8 @@ function keyboard(buttons: Button[][]) {
 export class TelegramClient {
   constructor(
     private readonly token: string,
-    private readonly fetchFn: typeof fetch = fetch,
+    // Wrapped so fetch never runs with the client as `this`, which Workers rejects as an illegal invocation.
+    private readonly fetchFn: typeof fetch = (input, init) => fetch(input, init),
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
   ) {}
 
